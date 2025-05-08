@@ -6,24 +6,23 @@ function getMemberQuery(year) {
         {
             members(year: ${year}) {
                 memberId
-                name
                 rollNo
-                macAddress
             }
         }
         `
     };
 }
 
-function getAtttendanceQuery(memberId) {
+function getAtttendanceQuery(naiveDate) {
     return {
         query: `
         {
-            attendance(memberId: ${memberId}) {
+            attendanceByDate(date: ${naiveDate}) {
                 memberId
                 date
                 timeIn
                 timeOut
+                name
             }
         }
         `
@@ -48,29 +47,33 @@ function getMemberFromRoot() {
     return finalData;
 }
 
-function getAttendanceFromRoot() {
+function getAttendanceFromRoot(naiveDate) {
     const memberData = getMemberFromRoot();
+    
     let finalData = [];
 
-    for (let i = 0; i < memberData.length; i++) {
+    const response = UrlFetchApp.fetch(url, {
+      method: "POST",
+      contentType: "application/json",
+      payload: JSON.stringify(getAtttendanceQuery(naiveDate)),
+      muteHttpExceptions: true
+    });
+
+    let attendanceData = JSON.parse(response.getContentText())['data']['attendanceByDate'];
+
+    for (const attendance of attendanceData) {
         let temp_data = {};
 
-        const response = UrlFetchApp.fetch(url, {
-            method: "POST",
-            contentType: "application/json",
-            payload: JSON.stringify(getAtttendanceQuery(memberData[i]['memberId'])),
-            muteHttpExceptions: true
-        });
+        temp_data['name'] = attendance['name'];
+        temp_data['timeIn'] = attendance['timeIn'];
+        temp_data['timeOut'] = attendance['timeOut'];
 
-        let data = JSON.parse(response.getContentText())['data']['attendance'];
-        if (data.length > 0) {
-            data = data[data.length - 1];
+        for (const member of memberData) {
+            if (member['memberId'] == attendance['memberId']) {
+                temp_data['rollNo'] = member['rollNo'];
+                break;
+            }
         }
-
-        temp_data['name'] = memberData[i]['name'];
-        temp_data['rollNo'] = memberData[i]['rollNo'];
-        temp_data['timeIn'] = data['timeIn'];
-        temp_data['timeOut'] = data['timeOut'];
 
         finalData.push(temp_data);
     }
@@ -103,7 +106,16 @@ function fillSheet(sheet,memberDatas) {
 
 function main() {
   try {
-    const memberDataMap = getAttendanceFromRoot();
+    const today = new Date();
+
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+
+    let date = `${day}/${month}-${year}`;
+    let naiveDate = `"${year}-${month}-${day}"`;
+
+    const memberDataMap = getAttendanceFromRoot(naiveDate);
     let filteredData = [];
     let any_presence_flag = false;
 
@@ -116,12 +128,6 @@ function main() {
 
     if (any_presence_flag) {
       const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-
-      let date = new Date().toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      });
 
       const sheetName = `${date}`
       
