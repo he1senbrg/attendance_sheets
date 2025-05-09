@@ -112,7 +112,7 @@ function main() {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
 
-    let date = `${day}/${month}-${year}`;
+    let date = `${day}/${month}/${year}`;
     let naiveDate = `"${year}-${month}-${day}"`;
 
     const memberDataMap = getAttendanceFromRoot(naiveDate);
