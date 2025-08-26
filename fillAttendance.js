@@ -1,79 +1,44 @@
 url = "https://root.amfoss.in/"
 
-function getMemberQuery(year) {
-    return {
-        query: `
-        {
-            members(year: ${year}) {
-                memberId
-                rollNo
-            }
-        }
-        `
-    };
-}
-
-function getAtttendanceQuery(naiveDate) {
+function getAttendanceQuery(naiveDate) {
     return {
         query: `
         {
             attendanceByDate(date: ${naiveDate}) {
-                memberId
+                member {
+                    name
+                    memberId
+                    rollNo
+                }
                 date
                 timeIn
                 timeOut
-                name
             }
         }
         `
     };
 }
 
-function getMemberFromRoot() {
-    let finalData = [];
-
-    for (let year = 0; year < 5; year++) {
-        const response = UrlFetchApp.fetch(url, {
-            method: "POST",
-            contentType: "application/json",
-            payload: JSON.stringify(getMemberQuery(year)),
-            muteHttpExceptions: true
-        });
-
-        const data = JSON.parse(response.getContentText())['data']['members'];
-        finalData = finalData.concat(data);
-    }
-
-    return finalData;
-}
-
 function getAttendanceFromRoot(naiveDate) {
-    const memberData = getMemberFromRoot();
-    
-    let finalData = [];
-
     const response = UrlFetchApp.fetch(url, {
-      method: "POST",
-      contentType: "application/json",
-      payload: JSON.stringify(getAtttendanceQuery(naiveDate)),
-      muteHttpExceptions: true
+        method: "POST",
+        contentType: "application/json",
+        payload: JSON.stringify(getAttendanceQuery(naiveDate)),
+        muteHttpExceptions: true
     });
 
     let attendanceData = JSON.parse(response.getContentText())['data']['attendanceByDate'];
+    let finalData = [];
 
     for (const attendance of attendanceData) {
         let temp_data = {};
 
-        temp_data['name'] = attendance['name'];
+        temp_data['name'] = attendance['member']['name'];
+        temp_data['rollNo'] = attendance['member']['rollNo'];
+        temp_data['memberId'] = attendance['member']['memberId'];
         temp_data['timeIn'] = attendance['timeIn'];
         temp_data['timeOut'] = attendance['timeOut'];
-
-        for (const member of memberData) {
-            if (member['memberId'] == attendance['memberId']) {
-                temp_data['rollNo'] = member['rollNo'];
-                break;
-            }
-        }
+        temp_data['date'] = attendance['date'];
 
         finalData.push(temp_data);
     }
@@ -97,7 +62,7 @@ function fillSheet(sheet,memberDatas) {
 
     let sl_count = 1;
     memberDatas.forEach(record => {
-        if (record.timein != "00:00:00") {
+        if (record.timeIn != null && record.timeIn != "00:00:00") {
           sheet.appendRow([sl_count,record['name'],record['rollNo'],"",record['timeIn'], record['timeOut']]);
           sl_count++;
         }
