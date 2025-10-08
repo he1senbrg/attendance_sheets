@@ -4,15 +4,17 @@ function getAttendanceQuery(naiveDate) {
     return {
         query: `
         {
-            attendanceByDate(date: ${naiveDate}) {
-                member {
-                    name
-                    memberId
-                    rollNo
+            allMembers {
+                attendance {
+                    onDate(date: ${naiveDate}) {
+                        date
+                        timeIn
+                        timeOut
+                    }
                 }
-                date
-                timeIn
-                timeOut
+                name
+                memberId
+                rollNo
             }
         }
         `
@@ -27,18 +29,26 @@ function getAttendanceFromRoot(naiveDate) {
         muteHttpExceptions: true
     });
 
-    let attendanceData = JSON.parse(response.getContentText())['data']['attendanceByDate'];
+    let membersData = JSON.parse(response.getContentText())['data']['allMembers'];
     let finalData = [];
 
-    for (const attendance of attendanceData) {
+    for (const member of membersData) {
         let temp_data = {};
 
-        temp_data['name'] = attendance['member']['name'];
-        temp_data['rollNo'] = attendance['member']['rollNo'];
-        temp_data['memberId'] = attendance['member']['memberId'];
-        temp_data['timeIn'] = attendance['timeIn'];
-        temp_data['timeOut'] = attendance['timeOut'];
-        temp_data['date'] = attendance['date'];
+        temp_data['name'] = member['name'];
+        temp_data['rollNo'] = member['rollNo'];
+        temp_data['memberId'] = member['memberId'];
+        
+        const attendanceOnDate = member['attendance']['onDate'];
+        if (attendanceOnDate) {
+            temp_data['timeIn'] = attendanceOnDate['timeIn'];
+            temp_data['timeOut'] = attendanceOnDate['timeOut'];
+            temp_data['date'] = attendanceOnDate['date'];
+        } else {
+            temp_data['timeIn'] = null;
+            temp_data['timeOut'] = null;
+            temp_data['date'] = null;
+        }
 
         finalData.push(temp_data);
     }
